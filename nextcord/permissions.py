@@ -567,6 +567,24 @@ class Permissions(BaseFlags):
         return 1 << 40
 
     @flag_value
+    def view_creator_monetisation_analytics(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can view creator monetisation analytics.
+
+        Referred to as ``View Server Subcription Insights`` in the discord client.
+
+        .. versionadded:: 3.1
+        """
+        return 1 << 41
+
+    @flag_value
+    def use_soundboard(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can use the soundboard in a voice channel.
+
+        .. versionadded:: 3.1
+        """
+        return 1 << 42
+
+    @flag_value
     def create_expressions(self) -> int:
         """:class:`bool`: Returns ``True`` if a user can create expressions.
 
@@ -585,12 +603,36 @@ class Permissions(BaseFlags):
         return 1 << 44
 
     @flag_value
+    def use_external_sounds(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can use external sounds in a voice channel.
+
+        .. versionadded:: 3.1
+        """
+        return 1 << 45
+
+    @flag_value
     def send_voice_messages(self) -> int:
         """:class:`bool`: Returns ``True`` if a user can send voice messages.
 
         .. versionadded:: 3.0
         """
         return 1 << 46
+
+    @flag_value
+    def send_polls(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can send polls.
+
+        .. versionadded:: 3.1
+        """
+        return 1 << 49
+
+    @flag_value
+    def use_external_apps(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can use user-installed apps to send public responses.
+
+        .. versionadded:: 3.1
+        """
+        return 1 << 50
 
 
 def _augment_from_permissions(cls):
@@ -706,8 +748,14 @@ class PermissionOverwrite:
         use_external_stickers: Optional[bool]
         start_embedded_activities: Optional[bool]
         moderate_members: Optional[bool]
+        view_creator_monetisation_analytics: Optional[bool]
+        use_soundboard: Optional[bool]
         create_expressions: Optional[bool]
         create_events: Optional[bool]
+        use_external_sounds: Optional[bool]
+        send_voice_messages: Optional[bool]
+        send_polls: Optional[bool]
+        use_external_apps: Optional[bool]
 
     def __init__(self, **kwargs: Optional[bool]) -> None:
         self._values: Dict[str, Optional[bool]] = {}
