@@ -8,7 +8,6 @@ import logging
 import signal
 import sys
 import traceback
-import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -77,7 +76,7 @@ if TYPE_CHECKING:
     from .application_command import BaseApplicationCommand, ClientCog, SlashApplicationSubcommand
     from .asset import Asset
     from .channel import DMChannel
-    from .enums import Locale
+    from .enums import IntegrationType, InteractionContextType, Locale
     from .file import File
     from .flags import MemberCacheFlags
     from .member import Member
@@ -2047,19 +2046,6 @@ class Client:
         """
         return self._connection.all_views()
 
-    @property
-    def persistent_views(self) -> List[View]:
-        """List[:class:`.View`]: A sequence of persistent views added to the client.
-
-        .. versionadded:: 2.0
-        """
-        warnings.warn(
-            ".persistent_views is deprecated, use .views instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
-        return self.views()
-
     def views(self, *, persistent: bool = True) -> List[View]:
         """Returns all persistent or non-persistent views.
 
@@ -2366,6 +2352,11 @@ class Client:
         Syncs the locally added application commands with the Guild corresponding to the given ID, or syncs
         global commands if the guild_id is ``None``.
 
+        .. versionchanged:: 3.0
+            This replaces the now removed ``delete_unknown_application_commands``,
+            ``associate_application_commands``, ``update_application_commands``, and ``rollout_application_commands``
+            methods.
+
         Parameters
         ----------
         data: Optional[List[:class:`dict`]]
@@ -2412,6 +2403,9 @@ class Client:
 
         Running this for global or the same guild multiple times at once may cause unexpected or unstable behavior.
 
+        .. versionchanged:: 3.0
+            This replaces the now removed ``deploy_application_commands`` method.
+
         Parameters
         ----------
         data: Optional[List[:class:`dict`]]
@@ -2437,64 +2431,6 @@ class Client:
             delete_unknown=delete_unknown,
             update_known=update_known,
         )
-
-    async def deploy_application_commands(
-        self,
-        data: Optional[List[ApplicationCommandPayload]] = None,
-        *,
-        guild_id: Optional[int] = None,
-        associate_known: bool = True,
-        delete_unknown: bool = True,
-        update_known: bool = True,
-    ) -> None:
-        warnings.warn(
-            ".deploy_application_commands is deprecated, use .discover_application_commands instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
-        await self.discover_application_commands(
-            data=data,
-            guild_id=guild_id,
-            associate_known=associate_known,
-            delete_unknown=delete_unknown,
-            update_known=update_known,
-        )
-
-    async def delete_unknown_application_commands(
-        self, data: Optional[List[ApplicationCommandPayload]] = None
-    ) -> None:
-        """Deletes unknown global commands."""
-        warnings.warn(
-            ".delete_unknown_application_commands is deprecated, use .sync_application_commands and set "
-            "kwargs in it instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
-        await self._connection.delete_unknown_application_commands(data=data, guild_id=None)
-
-    async def associate_application_commands(
-        self, data: Optional[List[ApplicationCommandPayload]] = None
-    ) -> None:
-        """Associates global commands registered with Discord with locally added commands."""
-        warnings.warn(
-            ".associate_application_commands is deprecated, use .sync_application_commands and set "
-            "kwargs in it instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
-        await self._connection.associate_application_commands(data=data, guild_id=None)
-
-    async def update_application_commands(
-        self, data: Optional[List[ApplicationCommandPayload]] = None
-    ) -> None:
-        """Updates global commands that have slightly changed with Discord."""
-        warnings.warn(
-            ".update_application_commands is deprecated, use .sync_application_commands and set "
-            "kwargs in it instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
-        await self._connection.update_application_commands(data=data, guild_id=None)
 
     async def register_new_application_commands(
         self, data: Optional[List[ApplicationCommandPayload]] = None, guild_id: Optional[int] = None
@@ -2587,16 +2523,9 @@ class Client:
         This does not register commands with Discord. If you want that, use
         :meth:`~Client.sync_all_application_commands` instead.
 
+        .. versionchanged:: 3.0
+            This replaces the now removed ``add_startup_application_commands`` method.
         """
-        self._add_decorated_application_commands()
-        self.add_all_cog_commands()
-
-    def add_startup_application_commands(self) -> None:
-        warnings.warn(
-            ".add_startup_application_commands is deprecated, use .add_all_application_commands instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
         self._add_decorated_application_commands()
         self.add_all_cog_commands()
 
@@ -2625,30 +2554,6 @@ class Client:
                 f"nextcord.Client: Forbidden error for {guild.name}|{guild.id}, is the commands Oauth scope "
                 f"enabled? {e}"
             )
-
-    async def rollout_application_commands(self) -> None:
-        """|coro|
-        Deploys global application commands and registers new ones if enabled.
-        """
-        warnings.warn(
-            ".rollout_application_commands is deprecated, use .sync_application_commands and set "
-            "kwargs in it instead.",
-            stacklevel=2,
-            category=FutureWarning,
-        )
-
-        if self.application_id is None:
-            raise TypeError("Could not get the current application's id")
-
-        global_payload = await self.http.get_global_commands(self.application_id)
-        await self.deploy_application_commands(
-            data=global_payload,
-            associate_known=self._rollout_associate_known,
-            delete_unknown=self._rollout_delete_unknown,
-            update_known=self._rollout_update_known,
-        )
-        if self._rollout_register_new:
-            await self.register_new_application_commands(data=global_payload)
 
     def _add_decorated_application_commands(self) -> None:
         for command in self._application_commands_to_add:
@@ -2684,6 +2589,8 @@ class Client:
         dm_permission: Optional[bool] = None,
         default_member_permissions: Optional[Union[Permissions, int]] = None,
         nsfw: bool = False,
+        integration_types: Optional[Iterable[Union[IntegrationType, int]]] = None,
+        contexts: Optional[Iterable[Union[InteractionContextType, int]]] = None,
         force_global: bool = False,
     ):
         """Creates a User context command from the decorated function.
@@ -2710,6 +2617,14 @@ class Client:
             Whether the command can only be used in age-restricted channels. Defaults to ``False``.
 
             .. versionadded:: 2.4
+        integration_types: Optional[Iterable[Union[:class:`IntegrationType`, :class:`int`]]]
+            Where the command is available, only for globally-scoped commands. Defaults to ``guild_install``.
+
+            .. versionadded:: 3.0
+        contexts: Optional[Iterable[Union[:class:`InteractionContextType`, :class:`int`]]]
+            Where the command can be used, only for globally-scoped commands. By default, all interaction context types included for new commands.
+
+            .. versionadded:: 3.0
         force_global: :class:`bool`
             If True, will force this command to register as a global command, even if ``guild_ids`` is set. Will still
             register to guilds. Has no effect if ``guild_ids`` are never set or added to.
@@ -2723,6 +2638,8 @@ class Client:
                 dm_permission=dm_permission,
                 default_member_permissions=default_member_permissions,
                 nsfw=nsfw,
+                integration_types=integration_types,
+                contexts=contexts,
                 force_global=force_global,
             )(func)
             self._application_commands_to_add.add(result)
@@ -2739,6 +2656,8 @@ class Client:
         dm_permission: Optional[bool] = None,
         default_member_permissions: Optional[Union[Permissions, int]] = None,
         nsfw: bool = False,
+        integration_types: Optional[Iterable[Union[IntegrationType, int]]] = None,
+        contexts: Optional[Iterable[Union[InteractionContextType, int]]] = None,
         force_global: bool = False,
     ):
         """Creates a Message context command from the decorated function.
@@ -2765,6 +2684,14 @@ class Client:
             Whether the command can only be used in age-restricted channels. Defaults to ``False``.
 
             .. versionadded:: 2.4
+        integration_types: Optional[Iterable[Union[:class:`IntegrationType`, :class:`int`]]]
+            Where the command is available, only for globally-scoped commands. Defaults to ``guild_install``.
+
+            .. versionadded:: 3.0
+        contexts: Optional[Iterable[Union[:class:`InteractionContextType`, :class:`int`]]]
+            Where the command can be used, only for globally-scoped commands. By default, all interaction context types included for new commands.
+
+            .. versionadded:: 3.0
         force_global: :class:`bool`
             If True, will force this command to register as a global command, even if ``guild_ids`` is set. Will still
             register to guilds. Has no effect if ``guild_ids`` are never set or added to.
@@ -2777,6 +2704,9 @@ class Client:
                 guild_ids=guild_ids,
                 dm_permission=dm_permission,
                 default_member_permissions=default_member_permissions,
+                nsfw=nsfw,
+                integration_types=integration_types,
+                contexts=contexts,
                 force_global=force_global,
             )(func)
             self._application_commands_to_add.add(result)
@@ -2795,6 +2725,8 @@ class Client:
         dm_permission: Optional[bool] = None,
         nsfw: bool = False,
         default_member_permissions: Optional[Union[Permissions, int]] = None,
+        integration_types: Optional[Iterable[Union[IntegrationType, int]]] = None,
+        contexts: Optional[Iterable[Union[InteractionContextType, int]]] = None,
         force_global: bool = False,
     ):
         """Creates a Slash application command from the decorated function.
@@ -2827,6 +2759,14 @@ class Client:
             Whether the command can only be used in age-restricted channels. Defaults to ``False``.
 
             .. versionadded:: 2.4
+        integration_types: Optional[Iterable[Union[:class:`IntegrationType`, :class:`int`]]]
+            Where the command is available, only for globally-scoped commands. Defaults to ``guild_install``.
+
+            .. versionadded:: 3.0
+        contexts: Optional[Iterable[Union[:class:`InteractionContextType`, :class:`int`]]]
+            Where the command can be used, only for globally-scoped commands. By default, all interaction context types included for new commands.
+
+            .. versionadded:: 3.0
         force_global: :class:`bool`
             If True, will force this command to register as a global command, even if ``guild_ids`` is set. Will still
             register to guilds. Has no effect if ``guild_ids`` are never set or added to.
@@ -2842,6 +2782,8 @@ class Client:
                 dm_permission=dm_permission,
                 default_member_permissions=default_member_permissions,
                 nsfw=nsfw,
+                integration_types=integration_types,
+                contexts=contexts,
                 force_global=force_global,
             )(func)
             self._application_commands_to_add.add(result)
