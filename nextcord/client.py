@@ -122,6 +122,18 @@ def _cancel_tasks(loop: asyncio.AbstractEventLoop) -> None:
 
 
 def _cleanup_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """
+    This will cancel all tasks in the given loop, including any async tasks awaiting execution or potentially
+    mid-execution.
+
+    This does not restrict itself to nextcord-module tasks. If the loop provided is being used for non-Nextcord tasks,
+    this WILL cancel them as well.
+
+    Parameters
+    ----------
+    loop: :class:`asyncio.AbstractEventLoop`
+        Asyncio event loop to cancel all tasks and shutdown async generators of.
+    """
     try:
         _cancel_tasks(loop)
         loop.run_until_complete(loop.shutdown_asyncgens())
@@ -828,7 +840,7 @@ class Client:
         await self.login(token)
         await self.connect(reconnect=reconnect)
 
-    def run(self, *args: Any, **kwargs: Any) -> None:
+    def run(self, token: str, *, reconnect: bool = True) -> None:
         """A blocking call that abstracts away the event loop
         initialisation from you.
 
@@ -852,43 +864,31 @@ class Client:
             is blocking. That means that registration of events or anything being
             called after this function call will not execute until it returns.
         """
-        loop = self.loop
+        loop = self.loop  # TODO: Make this asyncio.new_event_loop() if self.loop is removed.
+
+        # This allows Nextcord to gracefully close when Terminate/Signal 7 is received.
+        with contextlib.suppress(NotImplementedError):
+
+            def graceful_close() -> None:
+                loop.create_task(self.close())
+
+            loop.add_signal_handler(signal.SIGTERM, graceful_close)
+            _log.debug("Registered SIGTERM signal handler.")
 
         try:
-            loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
-            loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
-        except NotImplementedError:
-            pass
-
-        async def runner() -> None:
-            try:
-                await self.start(*args, **kwargs)
-            finally:
-                if not self.is_closed():
-                    await self.close()
-
-        def stop_loop_on_completion(_future) -> None:
-            loop.stop()
-
-        future = asyncio.ensure_future(runner(), loop=loop)
-        future.add_done_callback(stop_loop_on_completion)
-        try:
-            loop.run_forever()
+            loop.run_until_complete(self.start(token, reconnect=reconnect))
         except KeyboardInterrupt:
-            _log.info("Received signal to terminate bot and event loop.")
+            _log.info("Received keyboard interrupt, closing.")
         finally:
-            future.remove_done_callback(stop_loop_on_completion)
-            _log.info("Cleaning up tasks.")
+            if not self.is_closed():
+                loop.run_until_complete(self.close())
+
+            # This allows tasks that are pending cancellation to be cancelled and cleaned up. If a better
+            #  method of "wait until all marked-as-cancelled tasks are cancelled" is found, replace this.
+            loop.run_until_complete(asyncio.sleep(0.1))
+            # This will cancel all tasks, including non-Nextcord ones, in the loop and close it. If you don't want
+            # that to occur, run .start() and .close() manually.
             _cleanup_loop(loop)
-
-        if not future.cancelled():
-            try:
-                return future.result()
-            except KeyboardInterrupt:
-                # I am unsure why this gets raised here but suppress it anyway
-                return None
-
-        return None
 
     # properties
 
@@ -2586,7 +2586,6 @@ class Client:
         *,
         name_localizations: Optional[Dict[Union[Locale, str], str]] = None,
         guild_ids: Optional[Iterable[int]] = MISSING,
-        dm_permission: Optional[bool] = None,
         default_member_permissions: Optional[Union[Permissions, int]] = None,
         nsfw: bool = False,
         integration_types: Optional[Iterable[Union[IntegrationType, int]]] = None,
@@ -2606,9 +2605,6 @@ class Client:
             IDs of :class:`Guild`'s to add this command to. If not passed and :attr:`Client.default_guild_ids` is
             set, then those default guild ids will be used instead. If both of those are unset, then the command will
             be a global command.
-        dm_permission: :class:`bool`
-            If the command should be usable in DMs or not. Setting to ``False`` will disable the command from being
-            usable in DMs. Only for global commands, but will not error on guild.
         default_member_permissions: Optional[Union[:class:`Permissions`, :class:`int`]]
             Permission(s) required to use the command. Inputting ``8`` or ``Permissions(administrator=True)`` for
             example will only allow Administrators to use the command. If set to 0, nobody will be able to use it by
@@ -2635,7 +2631,6 @@ class Client:
                 name=name,
                 name_localizations=name_localizations,
                 guild_ids=guild_ids,
-                dm_permission=dm_permission,
                 default_member_permissions=default_member_permissions,
                 nsfw=nsfw,
                 integration_types=integration_types,
@@ -2653,7 +2648,6 @@ class Client:
         *,
         name_localizations: Optional[Dict[Union[Locale, str], str]] = None,
         guild_ids: Optional[Iterable[int]] = MISSING,
-        dm_permission: Optional[bool] = None,
         default_member_permissions: Optional[Union[Permissions, int]] = None,
         nsfw: bool = False,
         integration_types: Optional[Iterable[Union[IntegrationType, int]]] = None,
@@ -2673,9 +2667,6 @@ class Client:
             IDs of :class:`Guild`'s to add this command to. If not passed and :attr:`Client.default_guild_ids` is
             set, then those default guild ids will be used instead. If both of those are unset, then the command will
             be a global command.
-        dm_permission: :class:`bool`
-            If the command should be usable in DMs or not. Setting to ``False`` will disable the command from being
-            usable in DMs. Only for global commands, but will not error on guild.
         default_member_permissions: Optional[Union[:class:`Permissions`, :class:`int`]]
             Permission(s) required to use the command. Inputting ``8`` or ``Permissions(administrator=True)`` for
             example will only allow Administrators to use the command. If set to 0, nobody will be able to use it by
@@ -2702,7 +2693,6 @@ class Client:
                 name=name,
                 name_localizations=name_localizations,
                 guild_ids=guild_ids,
-                dm_permission=dm_permission,
                 default_member_permissions=default_member_permissions,
                 nsfw=nsfw,
                 integration_types=integration_types,
@@ -2722,7 +2712,6 @@ class Client:
         name_localizations: Optional[Dict[Union[Locale, str], str]] = None,
         description_localizations: Optional[Dict[Union[Locale, str], str]] = None,
         guild_ids: Optional[Iterable[int]] = MISSING,
-        dm_permission: Optional[bool] = None,
         nsfw: bool = False,
         default_member_permissions: Optional[Union[Permissions, int]] = None,
         integration_types: Optional[Iterable[Union[IntegrationType, int]]] = None,
@@ -2748,9 +2737,6 @@ class Client:
             IDs of :class:`Guild`'s to add this command to. If not passed and :attr:`Client.default_guild_ids` is
             set, then those default guild ids will be used instead. If both of those are unset, then the command will
             be a global command.
-        dm_permission: :class:`bool`
-            If the command should be usable in DMs or not. Setting to ``False`` will disable the command from being
-            usable in DMs. Only for global commands, but will not error on guild.
         default_member_permissions: Optional[Union[:class:`Permissions`, :class:`int`]]
             Permission(s) required to use the command. Inputting ``8`` or ``Permissions(administrator=True)`` for
             example will only allow Administrators to use the command. If set to 0, nobody will be able to use it by
@@ -2779,7 +2765,6 @@ class Client:
                 description=description,
                 description_localizations=description_localizations,
                 guild_ids=guild_ids,
-                dm_permission=dm_permission,
                 default_member_permissions=default_member_permissions,
                 nsfw=nsfw,
                 integration_types=integration_types,
