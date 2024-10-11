@@ -594,6 +594,11 @@ class Permissions(BaseFlags):
         """:class:`bool`: Returns ``True`` if a user can send polls."""
         return 1 << 49
 
+    @flag_value
+    def use_external_apps(self) -> int:
+        """:class:`bool`: Returns ``True`` if a user can use user-installed apps to send public responses."""
+        return 1 << 50
+
 
 def _augment_from_permissions(cls):
     cls.VALID_NAMES = set(Permissions.VALID_FLAGS)
@@ -714,6 +719,7 @@ class PermissionOverwrite:
         create_events: Optional[bool]
         use_external_sounds: Optional[bool]
         send_voice_messages: Optional[bool]
+        use_external_apps: Optional[bool]
 
     def __init__(self, **kwargs: Optional[bool]) -> None:
         self._values: Dict[str, Optional[bool]] = {}
