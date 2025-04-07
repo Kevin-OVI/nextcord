@@ -11,7 +11,6 @@ import traceback
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
     Callable,
     Coroutine,
     Dict,
@@ -58,7 +57,7 @@ from .guild_preview import GuildPreview
 from .http import HTTPClient
 from .interactions import Interaction
 from .invite import Invite
-from .iterators import guild_iterator
+from .iterators import GuildIterator
 from .mentions import AllowedMentions
 from .object import Object
 from .stage_instance import StageInstance
@@ -1467,10 +1466,8 @@ class Client:
         with_counts: bool = False,
         before: Optional[SnowflakeTime] = None,
         after: Optional[SnowflakeTime] = None,
-    ) -> AsyncIterator[Guild]:
-        """|asynciter|
-
-        Returns an async iterator that enables receiving your guilds.
+    ) -> GuildIterator:
+        """Retrieves an :class:`.AsyncIterator` that enables receiving your guilds.
 
         .. note::
 
@@ -1488,6 +1485,11 @@ class Client:
 
             async for guild in client.fetch_guilds(limit=150):
                 print(guild.name)
+
+        Flattening into a list ::
+
+            guilds = await client.fetch_guilds(limit=150).flatten()
+            # guilds is now a list of Guild...
 
         All parameters are optional.
 
@@ -1525,9 +1527,7 @@ class Client:
         :class:`.Guild`
             The guild with the guild data parsed.
         """
-        return guild_iterator(
-            self, limit=limit, before=before, after=after, with_counts=with_counts
-        )
+        return GuildIterator(self, limit=limit, before=before, after=after, with_counts=with_counts)
 
     async def fetch_template(self, code: Union[Template, str]) -> Template:
         """|coro|
