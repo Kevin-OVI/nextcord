@@ -8,7 +8,6 @@ import time
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
     Callable,
     Dict,
     Iterable,
@@ -38,7 +37,7 @@ from .enums import (
 from .errors import ClientException, InvalidArgument
 from .file import File
 from .flags import ChannelFlags, MessageFlags
-from .iterators import archived_thread_iterator
+from .iterators import ArchivedThreadIterator
 from .mentions import AllowedMentions
 from .mixins import Hashable, PinsMixin
 from .object import Object
@@ -795,10 +794,8 @@ class TextChannel(abc.Messageable, abc.GuildChannel, Hashable, PinsMixin):
         joined: bool = False,
         limit: Optional[int] = 50,
         before: Optional[Union[Snowflake, datetime.datetime]] = None,
-    ) -> AsyncIterator[Thread]:
-        """|asynciter|
-
-        Returns an async iterator that iterates over all archived threads in the guild.
+    ) -> ArchivedThreadIterator:
+        """Returns an :class:`~nextcord.AsyncIterator` that iterates over all archived threads in the guild.
 
         You must have :attr:`~Permissions.read_message_history` to use this. If iterating over private threads
         then :attr:`~Permissions.manage_threads` is also required.
@@ -838,7 +835,7 @@ class TextChannel(abc.Messageable, abc.GuildChannel, Hashable, PinsMixin):
             The archived threads.
         """
 
-        return archived_thread_iterator(
+        return ArchivedThreadIterator(
             self.id, self.guild, limit=limit, joined=joined, private=private, before=before
         )
 
@@ -1385,10 +1382,8 @@ class ForumChannel(abc.GuildChannel, Hashable):
         joined: bool = False,
         limit: Optional[int] = 50,
         before: Optional[Union[Snowflake, datetime.datetime]] = None,
-    ) -> AsyncIterator[Thread]:
-        """|asynciter|
-
-        Returns an async iterator that iterates over all archived threads in the guild.
+    ) -> ArchivedThreadIterator:
+        """Returns an :class:`~nextcord.AsyncIterator` that iterates over all archived threads in the guild.
 
         You must have :attr:`~Permissions.read_message_history` to use this.
         If iterating over private threads then :attr:`~Permissions.manage_threads` is also required.
@@ -1423,7 +1418,7 @@ class ForumChannel(abc.GuildChannel, Hashable):
         :class:`Thread`
             The archived threads.
         """
-        return archived_thread_iterator(
+        return ArchivedThreadIterator(
             self.id, self.guild, limit=limit, joined=joined, private=private, before=before
         )
 
