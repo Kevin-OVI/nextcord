@@ -1804,6 +1804,13 @@ class ComponentType(IntEnum):
 
     .. versionadded:: 2.3
     """
+    section = 9
+    text_display = 10
+    thumbnail = 11
+    media_gallery = 12
+    file = 13
+    separator = 14
+    container = 17
 
 
 class ButtonStyle(IntEnum):
@@ -1822,6 +1829,7 @@ class ButtonStyle(IntEnum):
     """Represents a red button for dangerous actions."""
     link = 5
     """Represents a link button."""
+    premium = 6
 
     # Aliases
     blurple = 1
