@@ -32,15 +32,18 @@ from typing import (
 import typing_extensions
 from typing_extensions import Annotated
 
-from .abc import GuildChannel
+from .abc import GuildChannel, PrivateChannel
 from .channel import (
     CategoryChannel,
     DMChannel,
     ForumChannel,
     GroupChannel,
+    PartialMessageable,
     StageChannel,
     TextChannel,
+    VocalGuildChannel,
     VoiceChannel,
+    _threaded_channel_factory,
 )
 from .enums import (
     ApplicationCommandOptionType,
@@ -55,6 +58,7 @@ from .errors import (
     ApplicationCommandOptionMissing,
     ApplicationError,
     ApplicationInvokeError,
+    InvalidData,
 )
 from .guild import Guild
 from .interactions import Interaction
@@ -79,6 +83,7 @@ if TYPE_CHECKING:
     )
 
     _CustomTypingMetaBase = Any
+    Channel = Union[GuildChannel, VocalGuildChannel, PrivateChannel, PartialMessageable]
 else:
     _CustomTypingMetaBase = object
 
@@ -1749,7 +1754,15 @@ class SlashCommandOption(BaseCommandOption, SlashOption, AutocompleteOptionMixin
         self, state: ConnectionState, value: Any, interaction: Interaction
     ) -> Any:
         if self.type is ApplicationCommandOptionType.channel:
-            value = state.get_channel(int(value))
+            channel_id = int(value)
+            value = state.get_channel(channel_id)
+            if not value:
+                # At this point the channel is not in the bot's cache,
+                # attempt to resolve from interaction data
+                value = get_channel_from_interaction(state, interaction, channel_id)
+                if value is None:
+                    # Fall back to a Object at-least
+                    value = Object(id=channel_id)
         elif self.type is ApplicationCommandOptionType.user:
             user_id = int(value)
             user_dict = {user.id: user for user in get_users_from_interaction(state, interaction)}
@@ -1774,10 +1787,24 @@ class SlashCommandOption(BaseCommandOption, SlashOption, AutocompleteOptionMixin
                         # Fall back to a Object at-least
                         value = Object(id=user_id)
         elif self.type is ApplicationCommandOptionType.role:
-            if interaction.guild is None:
-                raise TypeError("Unable to handle a Role type when guild is None")
+            role_id = int(value)
+            role_dict = {role.id: role for role in get_roles_from_interaction(state, interaction)}
 
-            value = interaction.guild.get_role(int(value))
+            try:
+                value = role_dict[role_id]
+            except KeyError:
+                # By here the interaction data doesn't contain
+                # a full role object yet so fall back to bot cache
+                value = None
+                data = cast(ApplicationCommandInteractionData, interaction.data)
+                if (guild_id := data.get("guild_id")) and (
+                    guild := state._guilds.get(int(guild_id))
+                ):
+                    value = guild.get_role(role_id)
+
+                if value is None:
+                    # Fall back to a Object at-least
+                    value = Object(id=role_id)
         elif self.type is ApplicationCommandOptionType.integer:
             try:
                 value = int(value)
@@ -2418,6 +2445,26 @@ class BaseApplicationCommand(CallbackMixin, CallbackWrapperMixin):
             if not found_correct_value:
                 _log.debug("Discord is missing an option we have, not valid payload.")
                 return False
+
+        # Default value for returned "integration_types" when not specified at registration is [0] (only guild_install)
+        if set(cmd_payload.get("integration_types", [0])) != set(
+            raw_payload.get("integration_types", [0])
+        ):
+            _log.debug("Integration types between commands not equal, not valid payload.")
+            return False
+
+        # The API documentation mentions that "all interaction context types included for new commands".
+        # This field can sometimes be explicitly None, so we cannot use the default argument for get
+        raw_contexts = raw_payload.get("contexts")
+        cmd_contexts = cmd_payload.get("contexts")
+
+        if cmd_contexts is None:
+            if raw_contexts is not None:
+                _log.debug("Contexts between commands not equal, not valid payload.")
+                return False
+        elif raw_contexts is None or set(cmd_contexts) != set(raw_contexts):
+            _log.debug("Contexts between commands not equal, not valid payload.")
+            return False
 
         # Default value for returned "integration_types" when not specified at registration is [0] (only guild_install)
         if set(cmd_payload.get("integration_types", [0])) != set(
@@ -3508,6 +3555,54 @@ def deep_dictionary_check(dict1: dict, dict2: dict) -> bool:
     return True
 
 
+def get_channel_from_interaction(
+    state: ConnectionState, interaction: Interaction, channel_id: int
+) -> Optional[Union[Channel, Thread]]:
+    """Tries to get a resolved :class:`Channel` or :class:`Thread` object from the interaction data.
+
+    Parameters
+    ----------
+    state: :class:`ConnectionState`
+        State object to construct the channel/thread with.
+    interaction: :class:`Interaction`
+        Interaction object to attempt to get the channel/thread from.
+    channel_id: :class:`int`
+        The channel/thread ID to attempt to resolve
+
+    Returns
+    -------
+    Optional[Union[:class:`Channel`, :class:`Thread`]]
+        The resolved channel or thread, if possible
+    """
+
+    data = cast(ApplicationCommandInteractionData, interaction.data)
+
+    if "resolved" in data and "channels" in data["resolved"]:
+        try:
+            channel_payload = data["resolved"]["channels"][str(channel_id)]
+        except KeyError:
+            return None
+        factory, ch_type = _threaded_channel_factory(channel_payload["type"])
+        if factory is None:
+            raise InvalidData(
+                "Unknown channel type {type} for channel ID {id}.".format_map(channel_payload)
+            )
+
+        if ch_type in (ChannelType.group, ChannelType.private):
+            # the factory will be a DMChannel or GroupChannel here
+            channel = factory(me=state.user, data=channel_payload, state=state)  # type: ignore
+        else:
+            # the factory can't be a DMChannel or GroupChannel here
+            guild_id = int(channel_payload["guild_id"])  # type: ignore
+            guild = state._get_guild(guild_id) or Object(id=guild_id)
+            # GuildChannels expects a Guild, we may be passing an Object
+            channel = factory(guild=guild, state=state, data=channel_payload)  # type: ignore
+
+        return channel
+
+    return None
+
+
 def get_users_from_interaction(
     state: ConnectionState, interaction: Interaction
 ) -> List[Union[User, Member]]:
@@ -3538,19 +3633,25 @@ def get_users_from_interaction(
         # Because the payload is modified further down, a copy is made to avoid affecting methods or
         #  users that read from interaction.data further down the line.
         for member_id, member_payload in member_payloads.copy().items():
-            if interaction.guild is None:
+            if interaction.guild_id is None:
                 raise TypeError("Cannot resolve members if Interaction.guild is None")
 
+            if interaction.guild is None:
+                guild = Object(interaction.guild_id)
+                member = None
+            else:
+                guild = interaction.guild
+                member = guild.get_member(int(member_id))
+
             # If a member isn't in the cache, construct a new one.
-            if (
-                not (member := interaction.guild.get_member(int(member_id)))
-                and "users" in data["resolved"]
-            ):
+            if not member and "users" in data["resolved"]:
                 user_payload = data["resolved"]["users"][member_id]
                 # This is required to construct the Member.
                 member_payload["user"] = user_payload
-                member = Member(data=member_payload, guild=interaction.guild, state=state)  # type: ignore
-                interaction.guild._add_member(member)
+                # Member expects a Guild, we may be passing an Object
+                member = Member(data=member_payload, guild=guild, state=state)  # type: ignore
+                if interaction.guild:
+                    interaction.guild._add_member(member)
 
             if member is not None:
                 ret.append(member)
@@ -3622,11 +3723,19 @@ def get_roles_from_interaction(state: ConnectionState, interaction: Interaction)
         role_payloads = data["resolved"]["roles"]
         for role_id, role_payload in role_payloads.items():
             # if True:  # Use this for testing payload -> Role
-            if interaction.guild is None:
+            if interaction.guild_id is None:
                 raise TypeError("Interaction.guild is None when resolving a Role")
 
-            if not (role := interaction.guild.get_role(int(role_id))):
-                role = Role(guild=interaction.guild, state=state, data=role_payload)
+            if interaction.guild is None:
+                guild = Object(interaction.guild_id)
+                role = None
+            else:
+                guild = interaction.guild
+                role = guild.get_role(int(role_id))
+
+            if not role:
+                # Role expects a Guild, we may be passing an Object
+                role = Role(guild=guild, state=state, data=role_payload)  # type: ignore
 
             ret.append(role)
 
