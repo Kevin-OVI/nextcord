@@ -91,7 +91,7 @@ format-jinja = """
 {%- endif -%}
 """
 style = "pep440"
-strict = true
+strict = false
 
 [tool.poetry-dynamic-versioning.substitution]
 patterns = [
