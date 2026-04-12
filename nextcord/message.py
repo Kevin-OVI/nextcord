@@ -653,7 +653,7 @@ class MessageSnapshot:
         self._message = data["message"]
         self._state = state
 
-        self.type: MessageType = MessageType(self._message["type"])
+        self.type: MessageType = try_enum(MessageType, self._message["type"])
         self.content: str = self._message["content"]
         self.embeds: List[Embed] = [Embed.from_dict(d) for d in self._message.get("embeds", [])]
         self.attachments: List[Attachment] = [
