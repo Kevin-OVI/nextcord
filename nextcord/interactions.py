@@ -22,7 +22,7 @@ from typing import (
 )
 
 from . import utils
-from .channel import ChannelType, PartialMessageable, _threaded_channel_factory
+from .channel import ChannelType, PartialMessageable, VocalGuildChannel, _threaded_channel_factory
 from .embeds import Embed
 from .enums import (
     IntegrationType,
@@ -31,7 +31,13 @@ from .enums import (
     InteractionType,
     try_enum,
 )
-from .errors import ClientException, HTTPException, InteractionResponded, InvalidArgument
+from .errors import (
+    ClientException,
+    HTTPException,
+    InteractionResponded,
+    InvalidArgument,
+    InvalidData,
+)
 from .file import File
 from .flags import MessageFlags
 from .member import Member
@@ -56,7 +62,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from . import abc, components
-    from .abc import MessageableChannel
+    from .abc import GuildChannel, MessageableChannel, PrivateChannel
     from .application_command import BaseApplicationCommand, SlashApplicationSubcommand
     from .channel import CategoryChannel, ForumChannel, StageChannel, TextChannel, VoiceChannel
     from .client import Client
@@ -78,6 +84,7 @@ if TYPE_CHECKING:
         PartialMessageable,
         ForumChannel,
     ]
+    Channel = Union[GuildChannel, VocalGuildChannel, PrivateChannel, PartialMessageable]
 
 MISSING: Any = utils.MISSING
 
@@ -400,6 +407,47 @@ class Interaction(Hashable, Generic[ClientT]):
         self._original_message = message
         return message
 
+    async def _resolve_channel(self, channel_id: int) -> Optional[Union[Channel, Thread]]:
+        """Tries to get a resolved :class:`Channel` or :class:`Thread` object from the interaction data.
+
+        Parameters
+        ----------
+        channel_id: :class:`int`
+            The channel/thread ID to attempt to resolve
+
+        Returns
+        -------
+        Optional[Union[:class:`Channel`, :class:`Thread`]]
+            The resolved channel or thread, if possible
+        """
+
+        data = cast(interaction_payloads.ApplicationCommandInteractionData, self.data)
+
+        if "resolved" in data and "channels" in data["resolved"]:
+            try:
+                channel_payload = data["resolved"]["channels"][str(channel_id)]
+            except KeyError:
+                return None
+            factory, ch_type = _threaded_channel_factory(channel_payload["type"])
+            if factory is None:
+                raise InvalidData(
+                    "Unknown channel type {type} for channel ID {id}.".format_map(channel_payload)
+                )
+
+            if ch_type in (ChannelType.group, ChannelType.private):
+                # the factory will be a DMChannel or GroupChannel here
+                channel = factory(me=self._state.user, data=channel_payload, state=self._state)  # type: ignore
+            else:
+                # the factory can't be a DMChannel or GroupChannel here
+                guild_id = int(channel_payload["guild_id"])  # type: ignore
+                guild = self._state._get_guild(guild_id) or Object(id=guild_id)
+                # GuildChannels expects a Guild, we may be passing an Object
+                channel = factory(guild=guild, state=self._state, data=channel_payload)  # type: ignore
+
+            return channel
+
+        return None
+
     def _resolve_users(self) -> list[User | Member]:
         """Returns a :class:`list` of resolved :class:`User` objects from the interaction data.
         If possible, it will return a :class:`list` of resolved :class:`Member` objects instead.
@@ -485,11 +533,19 @@ class Interaction(Hashable, Generic[ClientT]):
             role_payloads = data["resolved"]["roles"]
             for role_id, role_payload in role_payloads.items():
                 # if True:  # Use this for testing payload -> Role
-                if self.guild is None:
-                    raise TypeError("self.guild cannot be None when resolving a Role")
+                if self.guild_id is None:
+                    raise TypeError("self.guild_id cannot be None when resolving a Role")
 
-                if not (role := self.guild.get_role(int(role_id))):
-                    role = Role(guild=self.guild, state=self._state, data=role_payload)
+                if self.guild is None:
+                    guild = Object(self.guild_id)
+                    role = None
+                else:
+                    guild = self.guild
+                    role = guild.get_role(int(role_id))
+
+                if not role:
+                    # Role expects a Guild, we may be passing an Object
+                    role = Role(guild=guild, state=self._state, data=role_payload)  # type: ignore
 
                 ret.append(role)
 
