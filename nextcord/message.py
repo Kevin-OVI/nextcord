@@ -8,6 +8,7 @@ import contextlib
 import datetime
 import io
 import re
+import warnings
 from array import array
 from os import PathLike
 from typing import (
@@ -46,6 +47,7 @@ from .utils import MISSING, escape_mentions
 if TYPE_CHECKING:
     from typing_extensions import Self
 
+    from . import components
     from .abc import (
         GuildChannel,
         Messageable,
@@ -1670,6 +1672,9 @@ class Message(Hashable):
         allowed_mentions: Optional[AllowedMentions] = ...,
         view: Optional[View] = ...,
         file: Optional[File] = ...,
+        flags: Optional[MessageFlags] = ...,
+        suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     @overload
@@ -1684,6 +1689,9 @@ class Message(Hashable):
         allowed_mentions: Optional[AllowedMentions] = ...,
         view: Optional[View] = ...,
         file: Optional[File] = ...,
+        flags: Optional[MessageFlags] = ...,
+        suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     @overload
@@ -1698,6 +1706,9 @@ class Message(Hashable):
         allowed_mentions: Optional[AllowedMentions] = ...,
         view: Optional[View] = ...,
         files: Optional[List[File]] = ...,
+        flags: Optional[MessageFlags] = ...,
+        suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     @overload
@@ -1712,6 +1723,9 @@ class Message(Hashable):
         allowed_mentions: Optional[AllowedMentions] = ...,
         view: Optional[View] = ...,
         files: Optional[List[File]] = ...,
+        flags: Optional[MessageFlags] = ...,
+        suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     async def edit(
@@ -1726,6 +1740,9 @@ class Message(Hashable):
         view: Optional[View] = MISSING,
         file: Optional[File] = MISSING,
         files: Optional[List[File]] = MISSING,
+        flags: Optional[MessageFlags] = MISSING,
+        suppress_embeds: Optional[bool] = MISSING,
+        components: list[components.Component] = MISSING,
     ) -> Message:
         """|coro|
 
@@ -1757,6 +1774,10 @@ class Message(Hashable):
             all the embeds if set to ``True``. If set to ``False``
             this brings the embeds back if they were suppressed.
             Using this parameter requires :attr:`~.Permissions.manage_messages`.
+
+            .. warning::
+                This parameter is deprecated, use ``suppress_embeds`` instead.
+            .. deprecated:: 3.3
         delete_after: Optional[:class:`float`]
             If provided, the number of seconds to wait in the background
             before deleting the message we just edited. If the deletion fails,
@@ -1781,6 +1802,19 @@ class Message(Hashable):
             If provided, a list of new files to add to the message.
 
             .. versionadded:: 2.0
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
+
+            .. versionadded:: 3.3
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -1820,10 +1854,13 @@ class Message(Hashable):
         elif embeds is not MISSING:
             payload["embeds"] = [e.to_dict() for e in embeds]
 
-        if suppress is not MISSING:
+        if flags is MISSING:
             flags = MessageFlags._from_value(self.flags.value)
+        if suppress is not MISSING:
+            warnings.warn("Passing the 'suppress' parameter is deprecated, use 'suppress_embeds' instead", stacklevel=2, category=DeprecationWarning)
             flags.suppress_embeds = suppress
-            payload["flags"] = flags.value
+        if suppress_embeds is not MISSING:
+            flags.suppress_embeds = suppress_embeds
 
         if allowed_mentions is MISSING:
             if self._state.allowed_mentions is not None and self.author.id == self._state.self_id:
@@ -1845,6 +1882,15 @@ class Message(Hashable):
                 payload["components"] = view.to_components()
             else:
                 payload["components"] = []
+        elif components is not MISSING:
+            if components:
+                payload["components"] = [c.to_dict() for c in components]
+                flags.is_components_v2 = True
+            else:
+                payload["components"] = []
+
+        if flags.value != self.flags.value:
+            payload["flags"] = flags.value
 
         if file is not MISSING:
             payload["files"] = [file]
