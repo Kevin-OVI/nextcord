@@ -572,6 +572,10 @@ class Interaction(Hashable, Generic[ClientT]):
         view: Optional[:class:`~nextcord.ui.View`]
             The updated view to update this message with. If ``None`` is passed then
             the view is removed.
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
@@ -993,6 +997,10 @@ class InteractionResponse:
             Whether to suppress embeds on this message.
 
             .. versionadded:: 2.4
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
@@ -1178,6 +1186,10 @@ class InteractionResponse:
             If provided, the number of seconds to wait in the background
             before deleting the message we just sent. If the deletion fails,
             then it is silently ignored.
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
 
         Raises
@@ -1318,6 +1330,10 @@ class _InteractionMessageMixin:
             If provided, the number of seconds to wait in the background
             before deleting the message we just edited. If the deletion fails,
             then it is silently ignored.
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
