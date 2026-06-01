@@ -1155,6 +1155,7 @@ class InteractionResponse:
         attachments: List[Attachment] = MISSING,
         view: Optional[View] = MISSING,
         delete_after: Optional[float] = None,
+        flags: Optional[MessageFlags] = None,
         components: list[components.Component] | None = None,
     ) -> Optional[Message]:
         """|coro|
@@ -1186,6 +1187,11 @@ class InteractionResponse:
             If provided, the number of seconds to wait in the background
             before deleting the message we just sent. If the deletion fails,
             then it is silently ignored.
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+
+            .. versionadded:: 3.2
         components:
             Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
 
@@ -1245,6 +1251,9 @@ class InteractionResponse:
         if attachments is not MISSING:
             payload["attachments"] = [a.to_dict() for a in attachments]
 
+        if flags is None:
+            flags = MessageFlags()
+
         if view is not MISSING:
             if message_id is not None:
                 state.prevent_view_updates_for(message_id)
@@ -1254,6 +1263,10 @@ class InteractionResponse:
                 payload["components"] = view.to_components()
         elif components is not None:
             payload["components"] = [comp.to_dict() for comp in components]
+            flags.is_components_v2 = True
+
+        if flags.value != 0:
+            payload["flags"] = flags.value
 
         adapter = async_context.get()
         try:
