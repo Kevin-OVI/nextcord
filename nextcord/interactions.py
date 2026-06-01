@@ -536,6 +536,8 @@ class Interaction(Hashable, Generic[ClientT]):
         attachments: List[Attachment] = MISSING,
         view: Optional[View] = MISSING,
         allowed_mentions: Optional[AllowedMentions] = None,
+        flags: Optional[MessageFlags] = None,
+        suppress_embeds: Optional[bool] = None,
         components: list[components.Component] | None = None,
     ) -> InteractionMessage:
         """|coro|
@@ -572,6 +574,15 @@ class Interaction(Hashable, Generic[ClientT]):
         view: Optional[:class:`~nextcord.ui.View`]
             The updated view to update this message with. If ``None`` is passed then
             the view is removed.
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
+
+            .. versionadded:: 3.3
         components:
             Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
 
@@ -605,6 +616,8 @@ class Interaction(Hashable, Generic[ClientT]):
             view=view,
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
+            flags=flags,
+            suppress_embeds=suppress_embeds,
             components=components,
         )
         adapter = async_context.get()
@@ -1157,6 +1170,7 @@ class InteractionResponse:
         view: Optional[View] = MISSING,
         delete_after: Optional[float] = None,
         flags: Optional[MessageFlags] = None,
+        suppress_embeds: Optional[bool] = None,
         components: list[components.Component] | None = None,
     ) -> Optional[Message]:
         """|coro|
@@ -1191,6 +1205,10 @@ class InteractionResponse:
         flags: Optional[:class:`~nextcord.MessageFlags`]
             The message flags being set for this message.
             Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
 
             .. versionadded:: 3.3
         components:
@@ -1254,6 +1272,8 @@ class InteractionResponse:
 
         if flags is None:
             flags = MessageFlags()
+        if suppress_embeds is not None:
+            flags.suppress_embeds = suppress_embeds
 
         if view is not MISSING:
             if message_id is not None:
