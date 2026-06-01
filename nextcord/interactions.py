@@ -1192,7 +1192,7 @@ class InteractionResponse:
             The message flags being set for this message.
             Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
 
-            .. versionadded:: 3.2
+            .. versionadded:: 3.3
         components:
             Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
 
