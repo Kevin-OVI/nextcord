@@ -1375,6 +1375,7 @@ class Webhook(BaseWebhook):
         flags: Optional[MessageFlags] = None,
         suppress_embeds: Optional[bool] = None,
         thread_name: Optional[str] = None,
+        components: list[Component] | None = None,
     ) -> WebhookMessage: ...
 
     @overload
@@ -1398,6 +1399,7 @@ class Webhook(BaseWebhook):
         flags: Optional[MessageFlags] = None,
         suppress_embeds: Optional[bool] = None,
         thread_name: Optional[str] = None,
+        components: list[Component] | None = None,
     ) -> None: ...
 
     async def send(
@@ -1509,6 +1511,10 @@ class Webhook(BaseWebhook):
             Name of thread to create (requires the webhook channel to be a forum or media channel).
 
             .. versionadded:: 3.0
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
