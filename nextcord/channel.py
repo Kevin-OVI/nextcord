@@ -63,7 +63,7 @@ __all__ = (
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from . import ui
+    from . import ui, components
     from .abc import Snowflake, SnowflakeTime
     from .embeds import Embed
     from .guild import Guild, GuildChannel as GuildChannelType
@@ -1207,6 +1207,7 @@ class ForumChannel(abc.GuildChannel, Hashable):
         applied_tags: Optional[List[ForumTag]] = None,
         flags: Optional[MessageFlags] = None,
         suppress_embeds: Optional[bool] = None,
+        components: list[components.Component] | None = None,
     ) -> Thread:
         """|coro|
 
@@ -1263,6 +1264,10 @@ class ForumChannel(abc.GuildChannel, Hashable):
         suppress_embeds: Optional[:class:`bool`]
             Whether to suppress embeds on this message.
             .. versionadded:: 2.4
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -1310,6 +1315,9 @@ class ForumChannel(abc.GuildChannel, Hashable):
                 raise InvalidArgument(f"View parameter must be View not {view.__class__!r}")
 
             components = view.to_components()
+        elif components:
+            flags.is_components_v2 = True
+            components = [comp.to_dict() for comp in components]
         else:
             components = None
 
