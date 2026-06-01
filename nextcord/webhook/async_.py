@@ -50,6 +50,7 @@ _log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     import datetime
 
+    from . import components
     from ..abc import Snowflake
     from ..channel import TextChannel
     from ..components import Component
@@ -746,6 +747,9 @@ class WebhookMessage(Message):
         view: Optional[View] = MISSING,
         allowed_mentions: Optional[AllowedMentions] = None,
         delete_after: Optional[float] = None,
+        flags: Optional[MessageFlags] = None,
+        suppress_embeds: Optional[bool] = None,
+        components: list[components.Component] = None,
     ) -> WebhookMessage:
         """|coro|
 
@@ -793,6 +797,17 @@ class WebhookMessage(Message):
             then it is silently ignored.
 
             .. versionadded:: 2.0
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
+            .. versionadded:: 3.3
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -822,6 +837,9 @@ class WebhookMessage(Message):
             attachments=attachments,
             view=view,
             allowed_mentions=allowed_mentions,
+            flags=flags,
+            suppress_embeds=suppress_embeds,
+            components=components,
         )
 
         if delete_after is not None:
@@ -1657,6 +1675,9 @@ class Webhook(BaseWebhook):
         view: Optional[View] = MISSING,
         thread: Snowflake = MISSING,
         allowed_mentions: Optional[AllowedMentions] = None,
+        flags: Optional[MessageFlags] = None,
+        suppress_embeds: Optional[bool] = None,
+        components: list[Component] | None = None,
     ) -> WebhookMessage:
         """|coro|
 
@@ -1707,6 +1728,17 @@ class Webhook(BaseWebhook):
             The thread that the message to be edited is in.
 
             .. versionadded:: 3.0
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
+            .. versionadded:: 3.3
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -1750,6 +1782,9 @@ class Webhook(BaseWebhook):
             view=view,
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
+            flags=flags,
+            suppress_embeds=suppress_embeds,
+            components=components,
         )
         adapter = async_context.get()
         thread_id: Optional[int] = None
