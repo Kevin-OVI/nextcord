@@ -747,6 +747,7 @@ class Interaction(Hashable, Generic[ClientT]):
             allowed_mentions=allowed_mentions,
             flags=flags,
             suppress_embeds=suppress_embeds,
+            components=components,
         )
 
     async def edit(self, *args, **kwargs) -> Optional[Message]:
