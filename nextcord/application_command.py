@@ -1749,7 +1749,15 @@ class SlashCommandOption(BaseCommandOption, SlashOption, AutocompleteOptionMixin
         self, state: ConnectionState, value: Any, interaction: Interaction
     ) -> Any:
         if self.type is ApplicationCommandOptionType.channel:
-            value = state.get_channel(int(value))
+            channel_id = int(value)
+            value = state.get_channel(channel_id)
+            if not value:
+                # At this point the channel is not in the bot's cache,
+                # attempt to resolve from interaction data
+                value = interaction._resolve_channel(channel_id)
+                if value is None:
+                    # Fall back to an Object at-least
+                    value = Object(id=channel_id)
         elif self.type is ApplicationCommandOptionType.user:
             user_id = int(value)
             user_dict = {user.id: user for user in interaction._resolve_users()}
@@ -1774,10 +1782,24 @@ class SlashCommandOption(BaseCommandOption, SlashOption, AutocompleteOptionMixin
                         # Fall back to a Object at-least
                         value = Object(id=user_id)
         elif self.type is ApplicationCommandOptionType.role:
-            if interaction.guild is None:
-                raise TypeError("Unable to handle a Role type when guild is None")
+            role_id = int(value)
+            role_dict = {role.id: role for role in interaction._resolve_roles()}
 
-            value = interaction.guild.get_role(int(value))
+            try:
+                value = role_dict[role_id]
+            except KeyError:
+                # By here the interaction data doesn't contain
+                # a full role object so fall back to bot cache
+                value = None
+                data = cast(ApplicationCommandInteractionData, interaction.data)
+                if (guild_id := data.get("guild_id")) and (
+                    guild := state._guilds.get(int(guild_id))
+                ):
+                    value = guild.get_role(role_id)
+
+                if value is None:
+                    # Fall back to an Object at-least
+                    value = Object(id=role_id)
         elif self.type is ApplicationCommandOptionType.integer:
             try:
                 value = int(value)
