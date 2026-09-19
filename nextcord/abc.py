@@ -54,6 +54,7 @@ if TYPE_CHECKING:
 
     from typing_extensions import Self
 
+    from . import components
     from .asset import Asset
     from .channel import (
         CategoryChannel,
@@ -1263,6 +1264,7 @@ class Messageable:
         view: Optional[View] = ...,
         flags: Optional[MessageFlags] = ...,
         suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     @overload
@@ -1282,6 +1284,7 @@ class Messageable:
         view: Optional[View] = ...,
         flags: Optional[MessageFlags] = ...,
         suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     @overload
@@ -1301,6 +1304,7 @@ class Messageable:
         view: Optional[View] = ...,
         flags: Optional[MessageFlags] = ...,
         suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     @overload
@@ -1320,6 +1324,7 @@ class Messageable:
         view: Optional[View] = ...,
         flags: Optional[MessageFlags] = ...,
         suppress_embeds: Optional[bool] = ...,
+        components: list[components.Component] = ...,
     ) -> Message: ...
 
     async def send(
@@ -1340,6 +1345,7 @@ class Messageable:
         view: Optional[View] = None,
         flags: Optional[MessageFlags] = None,
         suppress_embeds: Optional[bool] = None,
+        components: list[components.Component] | None = None,
     ):
         """|coro|
 
@@ -1419,6 +1425,10 @@ class Messageable:
             Whether to suppress embeds on this message.
 
             .. versionadded:: 2.4
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -1446,8 +1456,6 @@ class Messageable:
             flags = MessageFlags()
         if suppress_embeds is not None:
             flags.suppress_embeds = suppress_embeds
-
-        flag_value: Optional[int] = flags.value if flags.value != 0 else None
 
         embed_payload: Optional[EmbedData] = None
         embeds_payload: Optional[List[EmbedData]] = None
@@ -1487,12 +1495,18 @@ class Messageable:
                     "reference parameter must be Message, MessageReference, or PartialMessage"
                 ) from None
 
-        components: Optional[List[ComponentPayload]] = None
         if view:
             if not hasattr(view, "__discord_ui_view__"):
                 raise InvalidArgument(f"view parameter must be View not {view.__class__!r}")
 
             components = cast(List[ComponentPayload], view.to_components())
+        elif components:
+            flags.is_components_v2 = True
+            components = [comp.to_dict() for comp in components]
+        else:
+            components = None
+
+        flag_value: Optional[int] = flags.value if flags.value != 0 else None
 
         if file is not None and files is not None:
             raise InvalidArgument("Cannot pass both file and files parameter to send()")
@@ -1513,7 +1527,7 @@ class Messageable:
                     nonce=nonce,
                     message_reference=reference_payload,
                     stickers=stickers_payload,
-                    components=components,
+                    components=components,  # type: ignore
                     flags=flag_value,
                 )
             finally:
@@ -1535,7 +1549,7 @@ class Messageable:
                     allowed_mentions=allowed_mentions_payload,
                     message_reference=reference_payload,
                     stickers=stickers_payload,
-                    components=components,
+                    components=components,  # type: ignore
                     flags=flag_value,
                 )
             finally:
@@ -1552,7 +1566,7 @@ class Messageable:
                 allowed_mentions=allowed_mentions_payload,
                 message_reference=reference_payload,
                 stickers=stickers_payload,
-                components=components,
+                components=components,  # type: ignore
                 flags=flag_value,
             )
 

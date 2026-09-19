@@ -592,6 +592,8 @@ class Interaction(Hashable, Generic[ClientT]):
         attachments: List[Attachment] = MISSING,
         view: Optional[View] = MISSING,
         allowed_mentions: Optional[AllowedMentions] = None,
+        flags: Optional[MessageFlags] = None,
+        suppress_embeds: Optional[bool] = None,
         components: list[components.Component] | None = None,
     ) -> InteractionMessage:
         """|coro|
@@ -628,6 +630,19 @@ class Interaction(Hashable, Generic[ClientT]):
         view: Optional[:class:`~nextcord.ui.View`]
             The updated view to update this message with. If ``None`` is passed then
             the view is removed.
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
+
+            .. versionadded:: 3.3
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
@@ -657,6 +672,8 @@ class Interaction(Hashable, Generic[ClientT]):
             view=view,
             allowed_mentions=allowed_mentions,
             previous_allowed_mentions=previous_mentions,
+            flags=flags,
+            suppress_embeds=suppress_embeds,
             components=components,
         )
         adapter = async_context.get()
@@ -799,6 +816,7 @@ class Interaction(Hashable, Generic[ClientT]):
             allowed_mentions=allowed_mentions,
             flags=flags,
             suppress_embeds=suppress_embeds,
+            components=components,
         )
 
     async def edit(self, *args, **kwargs) -> Optional[Message]:
@@ -1049,6 +1067,10 @@ class InteractionResponse:
             Whether to suppress embeds on this message.
 
             .. versionadded:: 2.4
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
@@ -1203,6 +1225,8 @@ class InteractionResponse:
         attachments: List[Attachment] = MISSING,
         view: Optional[View] = MISSING,
         delete_after: Optional[float] = None,
+        flags: Optional[MessageFlags] = None,
+        suppress_embeds: Optional[bool] = None,
         components: list[components.Component] | None = None,
     ) -> Optional[Message]:
         """|coro|
@@ -1234,6 +1258,19 @@ class InteractionResponse:
             If provided, the number of seconds to wait in the background
             before deleting the message we just sent. If the deletion fails,
             then it is silently ignored.
+        flags: Optional[:class:`~nextcord.MessageFlags`]
+            The message flags being set for this message.
+            Currently only :class:`~nextcord.MessageFlags.suppress_embeds` is able to be set.
+
+            .. versionadded:: 3.3
+        suppress_embeds: Optional[:class:`bool`]
+            Whether to suppress embeds on this message.
+
+            .. versionadded:: 3.3
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
 
         Raises
@@ -1289,6 +1326,11 @@ class InteractionResponse:
         if attachments is not MISSING:
             payload["attachments"] = [a.to_dict() for a in attachments]
 
+        if flags is None:
+            flags = MessageFlags()
+        if suppress_embeds is not None:
+            flags.suppress_embeds = suppress_embeds
+
         if view is not MISSING:
             if message_id is not None:
                 state.prevent_view_updates_for(message_id)
@@ -1298,6 +1340,10 @@ class InteractionResponse:
                 payload["components"] = view.to_components()
         elif components is not None:
             payload["components"] = [comp.to_dict() for comp in components]
+            flags.is_components_v2 = True
+
+        if flags.value != 0:
+            payload["flags"] = flags.value
 
         adapter = async_context.get()
         try:
@@ -1374,6 +1420,10 @@ class _InteractionMessageMixin:
             If provided, the number of seconds to wait in the background
             before deleting the message we just edited. If the deletion fails,
             then it is silently ignored.
+        components:
+            Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
+
+            .. versionadded:: 3.2
 
         Raises
         ------
