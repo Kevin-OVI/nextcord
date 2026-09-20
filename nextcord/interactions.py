@@ -1147,6 +1147,7 @@ class InteractionResponse:
         attachments: List[Attachment] = MISSING,
         view: Optional[View] = MISSING,
         delete_after: Optional[float] = None,
+        allowed_mentions: Optional[AllowedMentions] = MISSING,
         components: list[components.Component] | None = None,
     ) -> Optional[Message]:
         """|coro|
@@ -1178,6 +1179,11 @@ class InteractionResponse:
             If provided, the number of seconds to wait in the background
             before deleting the message we just sent. If the deletion fails,
             then it is silently ignored.
+        allowed_mentions: :class:`AllowedMentions`
+            Controls the mentions being processed in this message.
+            See :meth:`.abc.Messageable.send` for more information.
+
+            .. versionadded:: 3.3
 
 
         Raises
@@ -1232,6 +1238,14 @@ class InteractionResponse:
 
         if attachments is not MISSING:
             payload["attachments"] = [a.to_dict() for a in attachments]
+
+        if allowed_mentions is MISSING or allowed_mentions is None:
+            if state.allowed_mentions is not None:
+                payload["allowed_mentions"] = state.allowed_mentions.to_dict()
+        elif state.allowed_mentions is not None:
+            payload["allowed_mentions"] = state.allowed_mentions.merge(allowed_mentions).to_dict()
+        else:
+            payload["allowed_mentions"] = allowed_mentions.to_dict()
 
         if view is not MISSING:
             if message_id is not None:
