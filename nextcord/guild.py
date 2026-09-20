@@ -54,7 +54,7 @@ from .enums import (
     try_enum,
 )
 from .errors import ClientException, InvalidArgument, InvalidData
-from .flags import SystemChannelFlags
+from .flags import ChannelFlags, SystemChannelFlags
 from .integrations import Integration, _integration_factory
 from .invite import Invite
 from .iterators import audit_log_iterator, ban_iterator, member_iterator, scheduled_event_iterator
@@ -106,7 +106,7 @@ if TYPE_CHECKING:
     from .types.snowflake import SnowflakeList
     from .types.sticker import CreateGuildSticker
     from .types.template import CreateTemplate
-    from .types.threads import Thread as ThreadPayload
+    from .types.threads import Thread as ThreadPayload, ThreadArchiveDuration
     from .types.voice import GuildVoiceState
     from .voice_client import VoiceProtocol
     from .webhook import Webhook
@@ -1155,6 +1155,9 @@ class Guild(Hashable):
         nsfw: bool = MISSING,
         overwrites: Dict[Union[Role, Member], PermissionOverwrite] = MISSING,
         default_thread_slowmode_delay: int = MISSING,
+        default_auto_archive_duration: ThreadArchiveDuration = MISSING,
+        flags: ChannelFlags = MISSING,
+        news: bool = False,
     ) -> TextChannel:
         """|coro|
 
@@ -1216,6 +1219,25 @@ class Guild(Hashable):
             The maximum value possible is ``21600``.
         nsfw: :class:`bool`
             To mark the channel as NSFW or not.
+        default_thread_slowmode_delay: :class:`int`
+            The default slowmode delay for threads created in this channel.
+            Must be between ``0`` and ``21600``.
+
+            .. versionadded:: 2.4
+        default_auto_archive_duration: :class:`int`
+            The default auto archive duration in minutes for threads created in this channel.
+            Must be one of ``60``, ``1440``, ``4320``, or ``10080``.
+
+            .. versionadded:: 3.3
+        flags: :class:`ChannelFlags`
+            The channel flags to apply to the created channel.
+
+            .. versionadded:: 3.3
+        news: :class:`bool`
+            Whether to create a news channel instead of a regular text channel.
+            The guild must have the ``NEWS`` feature. Defaults to ``False``.
+
+            .. versionadded:: 3.3
         reason: Optional[:class:`str`]
             The reason for creating this channel. Shows up on the audit log.
 
@@ -1250,10 +1272,16 @@ class Guild(Hashable):
         if default_thread_slowmode_delay is not MISSING:
             options["default_thread_rate_limit_per_user"] = default_thread_slowmode_delay
 
+        if default_auto_archive_duration is not MISSING:
+            options["default_auto_archive_duration"] = default_auto_archive_duration
+
+        if flags is not MISSING:
+            options["flags"] = flags.value
+
         data = await self._create_channel(
             name,
             overwrites=overwrites,
-            channel_type=ChannelType.text,
+            channel_type=ChannelType.news if news else ChannelType.text,
             category=category,
             reason=reason,
             **options,
@@ -1276,6 +1304,9 @@ class Guild(Hashable):
         user_limit: int = MISSING,
         rtc_region: Optional[VoiceRegion] = MISSING,
         video_quality_mode: VideoQualityMode = MISSING,
+        nsfw: bool = MISSING,
+        slowmode_delay: int = MISSING,
+        flags: ChannelFlags = MISSING,
         overwrites: Dict[Union[Role, Member], PermissionOverwrite] = MISSING,
     ) -> VoiceChannel:
         """|coro|
@@ -1310,6 +1341,19 @@ class Guild(Hashable):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.0
+        nsfw: :class:`bool`
+            To mark the channel as NSFW or not.
+
+            .. versionadded:: 3.3
+        slowmode_delay: :class:`int`
+            Specifies the slowmode rate limit for user in this channel, in seconds.
+            The maximum value possible is ``21600``.
+
+            .. versionadded:: 3.3
+        flags: :class:`ChannelFlags`
+            The channel flags to apply to the created channel.
+
+            .. versionadded:: 3.3
         reason: Optional[:class:`str`]
             The reason for creating this channel. Shows up on the audit log.
 
@@ -1343,6 +1387,15 @@ class Guild(Hashable):
         if video_quality_mode is not MISSING:
             options["video_quality_mode"] = video_quality_mode.value
 
+        if nsfw is not MISSING:
+            options["nsfw"] = nsfw
+
+        if slowmode_delay is not MISSING:
+            options["rate_limit_per_user"] = slowmode_delay
+
+        if flags is not MISSING:
+            options["flags"] = flags.value
+
         data = await self._create_channel(
             name,
             overwrites=overwrites,
@@ -1371,6 +1424,8 @@ class Guild(Hashable):
         nsfw: Optional[bool] = None,
         rtc_region: Optional[VoiceRegion] = MISSING,
         video_quality_mode: Optional[VideoQualityMode] = None,
+        slowmode_delay: int = MISSING,
+        flags: ChannelFlags = MISSING,
         reason: Optional[str] = None,
     ) -> StageChannel:
         """|coro|
@@ -1417,6 +1472,15 @@ class Guild(Hashable):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.6
+        slowmode_delay: :class:`int`
+            Specifies the slowmode rate limit for user in this channel, in seconds.
+            The maximum value possible is ``21600``.
+
+            .. versionadded:: 3.3
+        flags: :class:`ChannelFlags`
+            The channel flags to apply to the created channel.
+
+            .. versionadded:: 3.3
         reason: Optional[:class:`str`]
             The reason for creating this channel. Shows up on the audit log.
 
@@ -1455,6 +1519,12 @@ class Guild(Hashable):
 
         if video_quality_mode is not None:
             options["video_quality_mode"] = video_quality_mode.value
+
+        if slowmode_delay is not MISSING:
+            options["rate_limit_per_user"] = slowmode_delay
+
+        if flags is not MISSING:
+            options["flags"] = flags.value
 
         data = await self._create_channel(
             name,
@@ -1530,6 +1600,10 @@ class Guild(Hashable):
         reason: Optional[str] = None,
         default_sort_order: SortOrderType = MISSING,
         default_forum_layout: Optional[ForumLayoutType] = None,
+        default_auto_archive_duration: ThreadArchiveDuration = MISSING,
+        slowmode_delay: int = MISSING,
+        nsfw: bool = MISSING,
+        flags: ChannelFlags = MISSING,
     ) -> ForumChannel:
         """|coro|
 
@@ -1579,6 +1653,24 @@ class Guild(Hashable):
             .. versionadded:: 2.4
         default_forum_layout: Optional[:class:`ForumLayoutType`]
             The default layout type used to display posts in this forum.
+        default_auto_archive_duration: :class:`int`
+            The default auto archive duration in minutes for threads created in this channel.
+            Must be one of ``60``, ``1440``, ``4320``, or ``10080``.
+
+            .. versionadded:: 3.3
+        slowmode_delay: :class:`int`
+            Specifies the slowmode rate limit for user in this channel, in seconds.
+            The maximum value possible is ``21600``.
+
+            .. versionadded:: 3.3
+        nsfw: :class:`bool`
+            To mark the channel as NSFW or not.
+
+            .. versionadded:: 3.3
+        flags: :class:`ChannelFlags`
+            The channel flags to apply to the created channel.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -1629,6 +1721,18 @@ class Guild(Hashable):
 
         if default_forum_layout is not None:
             options["default_forum_layout"] = default_forum_layout.value
+
+        if default_auto_archive_duration is not MISSING:
+            options["default_auto_archive_duration"] = default_auto_archive_duration
+
+        if slowmode_delay is not MISSING:
+            options["rate_limit_per_user"] = slowmode_delay
+
+        if nsfw is not MISSING:
+            options["nsfw"] = nsfw
+
+        if flags is not MISSING:
+            options["flags"] = flags.value
 
         data = await self._create_channel(
             name,
