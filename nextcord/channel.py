@@ -1751,6 +1751,8 @@ class VoiceChannel(VocalGuildChannel, abc.Messageable):
         overwrites: Mapping[Union[Role, Member], PermissionOverwrite] = ...,
         rtc_region: Optional[VoiceRegion] = ...,
         video_quality_mode: VideoQualityMode = ...,
+        nsfw: bool = ...,
+        slowmode_delay: int = ...,
         flags: ChannelFlags = ...,
         reason: Optional[str] = ...,
     ) -> Optional[VoiceChannel]: ...
@@ -1804,6 +1806,19 @@ class VoiceChannel(VocalGuildChannel, abc.Messageable):
             The camera video quality for the voice channel's participants.
 
             .. versionadded:: 2.0
+        nsfw: :class:`bool`
+            To mark the channel as NSFW or not.
+
+            .. versionadded:: 3.3
+        slowmode_delay: :class:`int`
+            Specifies the slowmode rate limit for user in this channel, in seconds.
+            A value of ``0`` disables slowmode. The maximum value possible is ``21600``.
+
+            .. versionadded:: 3.3
+        flags: :class:`ChannelFlags`
+            The new channel flags.
+
+            .. versionadded:: 3.3
 
         Raises
         ------
@@ -2320,6 +2335,9 @@ class StageChannel(VocalGuildChannel, abc.Messageable):
         overwrites: Mapping[Union[Role, Member], PermissionOverwrite] = ...,
         rtc_region: Optional[VoiceRegion] = ...,
         video_quality_mode: VideoQualityMode = ...,
+        bitrate: int = ...,
+        nsfw: bool = ...,
+        slowmode_delay: int = ...,
         flags: ChannelFlags = ...,
         user_limit: int = ...,
         reason: Optional[str] = ...,
@@ -2366,6 +2384,23 @@ class StageChannel(VocalGuildChannel, abc.Messageable):
             The camera video quality for the stage channel's participants.
 
             .. versionadded:: 2.0
+        bitrate: :class:`int`
+            The channel's preferred audio bitrate in bits per second.
+
+            .. versionadded:: 3.3
+        nsfw: :class:`bool`
+            To mark the channel as NSFW or not.
+
+            .. versionadded:: 3.3
+        slowmode_delay: :class:`int`
+            Specifies the slowmode rate limit for user in this channel, in seconds.
+            A value of ``0`` disables slowmode. The maximum value possible is ``21600``.
+
+            .. versionadded:: 3.3
+        flags: :class:`ChannelFlags`
+            The new channel flags.
+
+            .. versionadded:: 3.3
         user_limit: :class:`int`
             The maximum number of users allowed in the stage channel.
 
