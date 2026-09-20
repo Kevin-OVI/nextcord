@@ -1227,6 +1227,7 @@ class InteractionResponse:
         delete_after: Optional[float] = None,
         flags: Optional[MessageFlags] = None,
         suppress_embeds: Optional[bool] = None,
+        allowed_mentions: Optional[AllowedMentions] = MISSING,
         components: list[components.Component] | None = None,
     ) -> Optional[Message]:
         """|coro|
@@ -1271,6 +1272,11 @@ class InteractionResponse:
             Components to include with the message. Enables the :class:`~nextcord.MessageFlags.is_components_v2` flag.
 
             .. versionadded:: 3.2
+        allowed_mentions: :class:`AllowedMentions`
+            Controls the mentions being processed in this message.
+            See :meth:`.abc.Messageable.send` for more information.
+
+            .. versionadded:: 3.3
 
 
         Raises
@@ -1330,6 +1336,14 @@ class InteractionResponse:
             flags = MessageFlags()
         if suppress_embeds is not None:
             flags.suppress_embeds = suppress_embeds
+
+        if allowed_mentions is MISSING or allowed_mentions is None:
+            if state.allowed_mentions is not None:
+                payload["allowed_mentions"] = state.allowed_mentions.to_dict()
+        elif state.allowed_mentions is not None:
+            payload["allowed_mentions"] = state.allowed_mentions.merge(allowed_mentions).to_dict()
+        else:
+            payload["allowed_mentions"] = allowed_mentions.to_dict()
 
         if view is not MISSING:
             if message_id is not None:
