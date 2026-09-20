@@ -50,7 +50,6 @@ _log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     import datetime
 
-    from . import components
     from ..abc import Snowflake
     from ..channel import TextChannel
     from ..components import Component
@@ -64,6 +63,7 @@ if TYPE_CHECKING:
     from ..types.snowflake import Snowflake as SnowflakeAlias
     from ..types.webhook import Webhook as WebhookPayload
     from ..ui.view import View
+    from . import components
 
 MISSING = utils.MISSING
 
@@ -749,7 +749,7 @@ class WebhookMessage(Message):
         delete_after: Optional[float] = None,
         flags: Optional[MessageFlags] = None,
         suppress_embeds: Optional[bool] = None,
-        components: list[components.Component] = None,
+        components: Optional[list[components.Component]] = None,
     ) -> WebhookMessage:
         """|coro|
 

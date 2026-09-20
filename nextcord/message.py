@@ -1899,7 +1899,11 @@ class Message(Hashable):
         if flags is MISSING:
             flags = MessageFlags._from_value(self.flags.value)
         if suppress is not MISSING:
-            warnings.warn("Passing the 'suppress' parameter is deprecated, use 'suppress_embeds' instead", stacklevel=2, category=DeprecationWarning)
+            warnings.warn(
+                "Passing the 'suppress' parameter is deprecated, use 'suppress_embeds' instead",
+                stacklevel=2,
+                category=DeprecationWarning,
+            )
             flags.suppress_embeds = suppress
         if suppress_embeds is not MISSING:
             flags.suppress_embeds = suppress_embeds

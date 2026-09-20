@@ -576,8 +576,7 @@ class Permissions(BaseFlags):
 
     @flag_value
     def use_soundboard(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can use the soundboard in a voice channel.
-        """
+        """:class:`bool`: Returns ``True`` if a user can use the soundboard in a voice channel."""
         return 1 << 42
 
     @flag_value
@@ -600,8 +599,7 @@ class Permissions(BaseFlags):
 
     @flag_value
     def use_external_sounds(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can use external sounds in a voice channel.
-        """
+        """:class:`bool`: Returns ``True`` if a user can use external sounds in a voice channel."""
         return 1 << 45
 
     @flag_value
@@ -614,32 +612,27 @@ class Permissions(BaseFlags):
 
     @flag_value
     def set_voice_channel_status(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can set voice channel status.
-        """
+        """:class:`bool`: Returns ``True`` if a user can set voice channel status."""
         return 1 << 48
 
     @flag_value
     def send_polls(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can send polls.
-        """
+        """:class:`bool`: Returns ``True`` if a user can send polls."""
         return 1 << 49
 
     @flag_value
     def use_external_apps(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can use user-installed apps to send public responses.
-        """
+        """:class:`bool`: Returns ``True`` if a user can use user-installed apps to send public responses."""
         return 1 << 50
 
     @flag_value
     def pin_messages(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can pin and unpin messages.
-        """
+        """:class:`bool`: Returns ``True`` if a user can pin and unpin messages."""
         return 1 << 51
 
     @flag_value
     def bypass_slowmode(self) -> int:
-        """:class:`bool`: Returns ``True`` if a user can bypass slowmode restrictions.
-        """
+        """:class:`bool`: Returns ``True`` if a user can bypass slowmode restrictions."""
         return 1 << 52
 
 

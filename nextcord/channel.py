@@ -62,7 +62,7 @@ __all__ = (
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from . import ui, components
+    from . import components, ui
     from .abc import Snowflake, SnowflakeTime
     from .embeds import Embed
     from .guild import Guild, GuildChannel as GuildChannelType
