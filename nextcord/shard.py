@@ -169,13 +169,24 @@ class Shard:
         self._dispatch("disconnect")
         self._dispatch("shard_disconnect", self.id)
         _log.info("Got a request to %s the websocket at Shard ID %s.", exc.op, self.id)
+
+        # Only specify the new gateway if resuming, otherwise use the default one
+        if exc.resume:
+            ws_params = {
+                "resume": True,
+                "gateway": self.ws.resume_url,
+                "session": self.ws.session_id,
+                "sequence": self.ws.sequence,
+            }
+        else:
+            ws_params = {"resume": False, "gateway": None, "session": None, "sequence": None}
+
         try:
             coro = DiscordWebSocket.from_client(
                 self._client,
-                resume=exc.resume,
                 shard_id=self.id,
-                session=self.ws.session_id,
-                sequence=self.ws.sequence,
+                format_gateway=True,
+                **ws_params,
             )
             self.ws = await asyncio.wait_for(coro, timeout=60.0)
         except self._handled_exceptions as e:
@@ -187,10 +198,26 @@ class Shard:
         else:
             self.launch()
 
-    async def reconnect(self) -> None:
+    async def reconnect(self, *, resume: bool = False) -> None:
         self._cancel_task()
+
+        if resume and self.ws.session_id is not None:
+            # Always try to RESUME the connection
+            # If the connection is not RESUME-able then the gateway will invalidate the session.
+            # This is apparently what the official Discord client does.
+            ws_params = {
+                "resume": True,
+                "gateway": self.ws.resume_url,
+                "session": self.ws.session_id,
+                "sequence": self.ws.sequence,
+            }
+        else:
+            ws_params = {}
+
         try:
-            coro = DiscordWebSocket.from_client(self._client, shard_id=self.id)
+            coro = DiscordWebSocket.from_client(
+                self._client, shard_id=self.id, format_gateway=True, **ws_params
+            )
             self.ws = await asyncio.wait_for(coro, timeout=60.0)
         except self._handled_exceptions as e:
             await self._handle_disconnect(e)
@@ -508,7 +535,7 @@ class AutoShardedClient(Client):
             if item.type in (EventType.identify, EventType.resume):
                 await item.shard.reidentify(item.error)
             elif item.type == EventType.reconnect:
-                await item.shard.reconnect()
+                await item.shard.reconnect(resume=True)
             elif item.type == EventType.terminate:
                 await self.close()
                 raise item.error
